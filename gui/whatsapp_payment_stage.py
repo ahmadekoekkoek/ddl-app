@@ -25,7 +25,8 @@ from .widgets import ModernButton
 # CONFIGURATION
 # =============================================================================
 
-SELLER_WHATSAPP_DISPLAY = "0823-3183-6926"  # Display format (no link)
+# Load WhatsApp number from environment or use a default
+SELLER_WHATSAPP_DISPLAY = os.getenv("WHATSAPP_NUMBER", "0823-3183-6926")
 
 
 # =============================================================================

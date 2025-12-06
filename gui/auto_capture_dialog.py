@@ -193,10 +193,10 @@ class AutoCaptureDialog(QDialog):
         self.worker.status_update.connect(lambda msg: self._set_status("info", msg))
         self.worker.snapshot.connect(self._handle_snapshot)
         self.worker.error.connect(self._handle_error)
+        self._set_status("info", "Menjalankan Chrome dan memonitor jaringan...")
         self.worker.start()
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-        self._set_status("info", "Menjalankan Chrome dan memonitor jaringan...")
 
     def _stop_worker(self, close_browser: bool = False):
         if self.worker and self.worker.isRunning():

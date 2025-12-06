@@ -5,8 +5,9 @@ main.py - Application entry point for v3.0
 
 import os
 import sys
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QPalette, QColor
+import time
+from PySide6.QtWidgets import QApplication, QSplashScreen
+from PySide6.QtGui import QPixmap, QPalette, QColor
 from PySide6.QtCore import Qt
 from app_gui import MainWindow
 
@@ -43,9 +44,20 @@ def main():
     app.setApplicationName("DTSEN Scraper Pro")
     app.setOrganizationName("DTSEN Solutions")
 
+    # Create and show splash screen
+    splash_pix = QPixmap("assets/app_icon.png")
+    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    splash.setMask(splash_pix.mask())
+    splash.show()
+    app.processEvents()
+
+    # Simulate loading time
+    time.sleep(2)
+
     # Create and show main window
     window = MainWindow()
     window.show()
+    splash.finish(window)
 
     # Start event loop
     sys.exit(app.exec())
