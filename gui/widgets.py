@@ -1,13 +1,90 @@
 """
 GUI Widgets Module
-Custom widgets: CircularProgress, StepIndicator, ModernButton
+Custom widgets: CircularProgress, StepIndicator, ModernButton, PackageCard
 """
 
-from PySide6.QtWidgets import QWidget, QPushButton
+from PySide6.QtWidgets import QWidget, QPushButton, QFrame, QLabel, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
 from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QPainter, QColor, QFont
 
 from .constants import COLORS, FONTS
+
+
+class PackageCard(QFrame):
+    """A visually elegant and informative card for package selection."""
+    def __init__(self, package_info: dict):
+        super().__init__()
+        self.package_info = package_info
+        self.setFixedWidth(280)
+        self.setMinimumHeight(380)
+        self.setup_ui()
+
+    def setup_ui(self):
+        color = self.package_info.get("color", "#3498db")
+        is_rec = self.package_info.get("recommended", False)
+
+        border_style = f"border: 2px solid {color};" if is_rec else "border: 1px solid #3a3a5e;"
+        bg_style = f"""
+            QFrame {{
+                background-color: #2c3e50;
+                border-radius: 15px;
+                {border_style}
+            }}
+            QFrame:hover {{
+                background-color: #34495e;
+                border: 2px solid {color};
+            }}
+        """
+        self.setStyleSheet(bg_style)
+        self.setCursor(Qt.PointingHandCursor)
+
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(25)
+        shadow.setColor(QColor(0, 0, 0, 90))
+        shadow.setOffset(0, 5)
+        self.setGraphicsEffect(shadow)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        if is_rec:
+            badge = QLabel("★ REKOMENDASI ★")
+            badge.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 12px; letter-spacing: 1px; background: transparent; border: none;")
+            badge.setAlignment(Qt.AlignCenter)
+            layout.addWidget(badge)
+
+        name_label = QLabel(self.package_info["name"])
+        name_label.setStyleSheet("font-size: 24px; font-weight: 800; color: white; background: transparent; border: none;")
+        name_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(name_label)
+
+        self.price_label = QLabel(self.package_info["price"])
+        self.price_label.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {color}; margin: 5px 0; background: transparent; border: none;")
+        self.price_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.price_label)
+
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("background-color: #3a3a5e;")
+        layout.addWidget(line)
+
+        for feature in self.package_info["features"]:
+            feat_layout = QHBoxLayout()
+            check = QLabel("✓")
+            check.setStyleSheet(f"color: {color}; font-weight: bold; background: transparent; border: none;")
+            text = QLabel(feature)
+            text.setStyleSheet("color: #bdc3c7; font-size: 13px; background: transparent; border: none;")
+            text.setWordWrap(True)
+            feat_layout.addWidget(check)
+            feat_layout.addWidget(text, 1)
+            feat_layout.setAlignment(Qt.AlignTop)
+            layout.addLayout(feat_layout)
+
+        layout.addStretch()
+
+    def set_price(self, price: str):
+        self.price_label.setText(price)
 
 
 class CircularProgress(QWidget):

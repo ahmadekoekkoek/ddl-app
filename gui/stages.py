@@ -16,7 +16,7 @@ from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
 
-from .widgets import CircularProgress, ModernButton
+from .widgets import CircularProgress, ModernButton, PackageCard
 from .workers import ConfigValidationWorker
 from .flow_layout import FlowLayout
 from .errors import show_error_dialog, ConfigError
@@ -895,96 +895,13 @@ class PackageStage(StageWidget):
 
         # Create package cards
         for pkg in self.packages_info:
-            card = self.create_package_card(pkg)
+            card = PackageCard(pkg)
             card.mousePressEvent = lambda e, name=pkg["name"]: self.select_package(name)
             packages_layout.addWidget(card)
+            self.package_cards[pkg["name"]] = card
 
         layout.addWidget(packages_container)
         layout.addStretch()
-
-    def create_package_card(self, pkg):
-        frame = QFrame()
-        frame.setFixedWidth(260)
-
-        # Gradient background
-        color = pkg["color"]
-        is_rec = pkg.get("recommended", False)
-
-        # Style
-        border_style = f"border: 2px solid {color};" if is_rec else "border: 1px solid #3a3a5e;"
-        bg_style = f"""
-            QFrame {{
-                background-color: #252538;
-                border-radius: 15px;
-                {border_style}
-            }}
-            QFrame:hover {{
-                background-color: #2d2d44;
-                border: 2px solid {color};
-                /* margin-top removed to fix cropping */
-            }}
-        """
-        frame.setStyleSheet(bg_style)
-        frame.setCursor(Qt.PointingHandCursor)
-
-        # Shadow
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 80))
-        shadow.setOffset(0, 4)
-        frame.setGraphicsEffect(shadow)
-
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(10)
-
-        # Recommended badge
-        if is_rec:
-            badge = QLabel("★ REKOMENDASI ★")
-            badge.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 11px; letter-spacing: 1px;")
-            badge.setAlignment(Qt.AlignCenter)
-            layout.addWidget(badge)
-
-        # Name
-        name_label = QLabel(pkg["name"])
-        name_label.setStyleSheet("font-size: 22px; font-weight: 800; color: white;")
-        name_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(name_label)
-
-        # Price
-        price_label = QLabel(pkg["price"])
-        price_label.setStyleSheet(f"font-size: 26px; font-weight: bold; color: {color}; margin: 5px 0;")
-        price_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(price_label)
-
-        # Store reference to price label for dynamic updates
-        self.package_cards[pkg["name"]] = {
-            'frame': frame,
-            'price_label': price_label
-        }
-
-        # Separator
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("background-color: #3a3a5e;")
-        layout.addWidget(line)
-
-        # Features
-        for feature in pkg["features"]:
-            feat_layout = QHBoxLayout()
-            check = QLabel("✓")
-            check.setStyleSheet(f"color: {color}; font-weight: bold;")
-            text = QLabel(feature)
-            text.setStyleSheet("color: #bdc3c7; font-size: 12px;")
-            text.setWordWrap(True)
-            feat_layout.addWidget(check)
-            feat_layout.addWidget(text, 1)
-            feat_layout.setAlignment(Qt.AlignTop)
-            layout.addLayout(feat_layout)
-
-        layout.addStretch()
-
-        return frame
 
     def set_counts(self, families, members):
         self.families_count = families
@@ -1001,12 +918,11 @@ class PackageStage(StageWidget):
         )
 
         # Update package card prices
-        for pkg_name, card_data in self.package_cards.items():
-            price_label = card_data['price_label']
+        for pkg_name, card in self.package_cards.items():
             if pkg_name == "BASIC":
-                price_label.setText(f"Rp {basic_price:,}")
+                card.set_price(f"Rp {basic_price:,}")
             elif pkg_name == "PRO":
-                price_label.setText(f"Rp {pro_price:,}")
+                card.set_price(f"Rp {pro_price:,}")
 
     def set_unlock_mode(self, is_unlock_mode, directory=None):
         """Configure package stage for unlock mode (existing locked files)"""
@@ -1074,93 +990,88 @@ class TermsStage(StageWidget):
 
         # Terms Text - Fixed formatting with bold on separate lines
         terms_text = """
-        <style>
-            .terms-list {
-                list-style-position: outside;
-                padding-left: 20px;
-            }
-            .terms-list li {
-                margin-bottom: 20px;
-                line-height: 1.65;
-            }
-            .terms-title {
-                color: #f1c40f;
-                font-weight: bold;
-                display: block;
-                margin-bottom: 6px;
-            }
-            .terms-desc {
-                color: #ecf0f1;
-                display: block;
-                margin-left: 0;
-                line-height: 1.7;
-            }
-        </style>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            line-height: 1.7;
+            color: #ecf0f1;
+        }
+        h2 {
+            color: #3498db;
+            text-align: center;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        p, li {
+            font-size: 13px;
+        }
+        ol {
+            padding-left: 25px;
+        }
+        li {
+            margin-bottom: 18px;
+        }
+        strong {
+            color: #f1c40f;
+            font-weight: 600;
+        }
+        .section-title {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #e67e22;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #3a3a5e;
+            font-size: 12px;
+            color: #95a5a6;
+        }
+    </style>
+    <h2>Ketentuan Penggunaan DTSEN Downloader</h2>
+    <p>
+        Selamat datang di DTSEN Downloader. Aplikasi ini dirancang sebagai alat bantu untuk mengotomatisasi proses pengunduhan dan pengolahan data dari sistem Data Terpadu Kesejahteraan Sosial (DTSEN). Dengan melanjutkan penggunaan aplikasi ini, Anda secara sadar dan tanpa paksaan menyetujui seluruh syarat dan ketentuan yang tercantum di bawah ini.
+    </p>
 
-        <h3 style="color: #3498db; text-align: center; margin-bottom: 15px;">
-            Syarat & Ketentuan Penggunaan DTSEN Downloader v1.0
-        </h3>
+    <ol>
+        <li>
+            <span class="section-title">1. Akseptasi dan Kepatuhan Hukum</span>
+            Anda menyatakan bahwa Anda adalah pihak yang memiliki <strong>kewenangan dan izin yang sah</strong> untuk mengakses data DTSEN. Penggunaan aplikasi ini harus sepenuhnya mematuhi peraturan perundang-undangan yang berlaku di Indonesia, termasuk namun tidak terbatas pada Undang-Undang Informasi dan Transaksi Elektronik (UU ITE) dan Undang-Undang Perlindungan Data Pribadi (UU PDP).
+        </li>
+        <li>
+            <span class="section-title">2. Tujuan Penggunaan</span>
+            Aplikasi ini ditujukan untuk penggunaan <strong>internal dan non-komersial</strong>. Dilarang keras melakukan eksploitasi data untuk tujuan yang melanggar hukum, termasuk redistribusi, penjualan kembali, atau publikasi data tanpa izin tertulis dari pihak berwenang.
+        </li>
+        <li>
+            <span class="section-title">3. Keamanan dan Kerahasiaan Data</span>
+            Aplikasi memproses semua data—termasuk token otorisasi, payload, dan data yang diunduh—secara <strong>lokal pada perangkat Anda</strong>. Tidak ada data sensitif yang dikirim atau disimpan di server eksternal milik pengembang. Oleh karena itu, Anda bertanggung jawab penuh atas keamanan fisik dan digital perangkat yang Anda gunakan.
+        </li>
+        <li>
+            <span class="section-title">4. Batasan Tanggung Jawab (Disclaimer of Liability)</span>
+            Aplikasi ini disediakan "SEBAGAIMANA ADANYA" (AS IS). Pengembang tidak memberikan jaminan dalam bentuk apa pun, baik tersurat maupun tersirat, mengenai fungsionalitas, keandalan, atau ketersediaan layanan API dari pihak ketiga. Pengembang tidak bertanggung jawab atas:
+            <ul>
+                <li>Kerugian langsung, tidak langsung, atau konsekuensial yang timbul dari penggunaan atau ketidakmampuan menggunakan aplikasi.</li>
+                <li>Perubahan pada sistem DTSEN yang menyebabkan aplikasi tidak berfungsi.</li>
+                <li>Kebocoran data akibat kelalaian atau keamanan perangkat pengguna yang tidak memadai.</li>
+            </ul>
+        </li>
+        <li>
+            <span class="section-title">5. Transaksi dan Lisensi</span>
+            Setiap transaksi yang dilakukan untuk membuka fitur premium bersifat <strong>final dan tidak dapat dikembalikan (non-refundable)</strong>. Kode pembuka (unlock code) yang diberikan bersifat unik untuk setiap sesi transaksi (TX-ID) dan hanya berlaku untuk paket yang dipilih.
+        </li>
+        <li>
+            <span class="section-title">6. Hak Kekayaan Intelektual</span>
+            Seluruh hak cipta, merek dagang, dan hak kekayaan intelektual lainnya yang terkait dengan perangkat lunak DTSEN Downloader adalah milik pengembang. Pengguna dilarang melakukan rekayasa balik (reverse engineering), dekompilasi, atau memodifikasi kode sumber aplikasi.
+        </li>
+    </ol>
 
-        <p style="margin-bottom: 15px; line-height: 1.6;">
-            Aplikasi ini disediakan sebagai alat bantu otomatisasi untuk pengunduhan dan pengelolaan data DTSEN. Dengan menggunakan aplikasi ini, Anda menyetujui dan terikat pada ketentuan berikut.
-        </p>
-
-        <ol class="terms-list">
-            <li>
-                <div class="terms-title">Kepatuhan Hukum & Kepemilikan Data</div>
-                <div class="terms-desc">
-                    Seluruh data tetap menjadi hak penuh penyedia data resmi. Pengguna berkewajiban memastikan kepemilikan izin akses yang sah serta mematuhi peraturan perundang-undangan yang berlaku, termasuk ketentuan perlindungan data pribadi dan regulasi Kemensos.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Batasan Penggunaan</div>
-                <div class="terms-desc">
-                    Aplikasi hanya diperkenankan untuk kebutuhan administratif internal. Segala bentuk scraping berlebihan, redistribusi, publikasi, atau komersialisasi data tanpa dasar hukum yang valid secara tegas dilarang.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Privasi & Keamanan Informasi</div>
-                <div class="terms-desc">
-                    Seluruh token, kredensial, dan file terenkripsi diproses secara lokal di perangkat pengguna. Pengguna bertanggung jawab sepenuhnya atas keamanan perangkatnya serta segala konsekuensi yang timbul akibat kelalaian, pelanggaran keamanan, atau penyalahgunaan akses.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Ketentuan Teknis</div>
-                <div class="terms-desc">
-                    Pengembang tidak memberikan jaminan atas ketersediaan API, kecepatan transfer, atau kompatibilitas sistem. Perubahan infrastruktur situs, pembatasan lalu lintas, gangguan jaringan, atau perubahan teknis lainnya dapat mengakibatkan kegagalan proses tanpa pemberitahuan sebelumnya.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Lisensi & Ketentuan Pembayaran</div>
-                <div class="terms-desc">
-                    Seluruh transaksi bersifat final dan tidak dapat dibatalkan. Lisensi penggunaan berlaku untuk satu transaksi TX-ID dan terbatas hanya pada paket layanan yang diperoleh. Akses tambahan memerlukan lisensi terpisah.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Batasan Tanggung Jawab</div>
-                <div class="terms-desc">
-                    Aplikasi disediakan “sebagaimana adanya” tanpa jaminan eksplisit maupun implisit. Pengembang tidak bertanggung jawab atas kerugian langsung, tidak langsung, insidental, maupun konsekuensial yang timbul dari penggunaan aplikasi atau ketidakmampuannya berfungsi sebagaimana mestinya.
-                </div>
-            </li>
-
-            <li>
-                <div class="terms-title">Audit & Kepatuhan Internal</div>
-                <div class="terms-desc">
-                    Pengguna bersedia menyediakan catatan aktivitas dan transaksi aplikasi apabila diminta oleh otoritas yang berwenang. Pengguna wajib memastikan bahwa instansinya memiliki mekanisme audit internal yang sesuai dengan standar tata kelola yang berlaku.
-                </div>
-            </li>
-        </ol>
-
-        <p style="margin-top: 20px; text-align: center; line-height: 1.6;">
-            Dengan menekan tombol <b>“Setuju & Lanjutkan”</b>, Anda menyatakan telah membaca, memahami, dan menerima seluruh ketentuan di atas.
-        </p>
-
-        """
+    <div class="footer">
+        Dengan menekan tombol <strong>“Setuju & Lanjutkan”</strong>, Anda mengonfirmasi bahwa Anda telah membaca, memahami, dan sepakat untuk terikat pada seluruh ketentuan ini.
+    </div>
+"""
 
         # Scroll Area for better UX
         scroll_area = QScrollArea()
