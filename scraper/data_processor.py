@@ -103,56 +103,58 @@ class DataProcessor:
 
     # Asset cleaning
 
-    def clean_aset(self, raw: List[Dict]) -> pd.DataFrame:
-        """Clean immovable asset data - pass through original columns like legacy version."""
-        if not raw:
-            return pd.DataFrame(columns=["id_keluarga"])
+    def clean_aset(self, aset_rows: List[Dict]) -> pd.DataFrame:
+        """Fixed: always create minimal DataFrame"""
+        if not aset_rows:
+            return pd.DataFrame(columns=["id_keluarga_parent"])
 
-        # Use json_normalize to flatten nested structures
-        df = pd.json_normalize(raw)
-
-        # Ensure id_keluarga column exists
+        df = pd.json_normalize(aset_rows)
         if "id_keluarga" not in df.columns and "id_keluarga_parent" in df.columns:
             df["id_keluarga"] = df["id_keluarga_parent"]
-        elif "ID_KELUARGA" in df.columns:
-            df["id_keluarga"] = df["ID_KELUARGA"]
 
-        # Drop columns containing / followed by digit (e.g., 0/jenis_lantai)
-        # Legacy behavior: only drop if start is digit/ (e.g. 0/xxxx)
-        # This prevents dropping nested valid columns like group/0/item
         drop_cols = [c for c in df.columns if "/" in c and c.split("/", 1)[0].isdigit()]
         if drop_cols:
-            df = df.drop(columns=drop_cols, errors="ignore")
+            df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
 
         if df.empty:
-            return pd.DataFrame(columns=["id_keluarga"])
+            return pd.DataFrame(columns=["id_keluarga_parent"])
 
         return df
 
-    def clean_aset_bergerak(self, raw: List[Dict]) -> pd.DataFrame:
-        """Aggregate movable asset data with alias normalization and quantity summing."""
-        if not raw:
+    def clean_aset_bergerak(self, asetb_rows: List[Dict]) -> pd.DataFrame:
+        """Fixed: ensure DataFrame is never truly empty"""
+        if not asetb_rows:
             return pd.DataFrame(columns=["id_keluarga"])
 
-        # Exact alias map from instructions
-        # Extended to handle likely inputs while mapping to requested targets
-        # Exact alias map from legacy version for compatibility
-        base_alias_map = {
+        alias_map = {
             # Livestock
             "sapi": "jumlah_sapi",
+            "jumlahsapi": "jumlah_sapi",
             "kerbau": "jumlah_kerbau",
+            "jumlahkerbau": "jumlah_kerbau",
             "kambing": "jumlah_kambing",
             "domba": "jumlah_kambing",
+            "kambingdomba": "jumlah_kambing",
+            "jumlahkambingdomba": "jumlah_kambing",
             "babi": "jumlah_babi",
+            "jumlahbabi": "jumlah_babi",
             "kuda": "jumlah_kuda",
+            "jumlahkuda": "jumlah_kuda",
             # Electronics & Appliances
             "ac": "ac",
+            "airconditioner": "ac",
+            "acairconditioner": "ac",
+            "airconditionerac": "ac",
             "emas": "emas",
             "perhiasan": "emas",
+            "emasperhiasan": "emas",
+            "emasperhiasanmin10gram": "emas",
             "komputer": "komputer",
             "laptop": "komputer",
             "tablet": "komputer",
+            "komputerlaptoptablet": "komputer",
             "lemaries": "lemari_es",
+            "lemarieskulkas": "lemari_es",
             "kulkas": "lemari_es",
             "mobil": "mobil",
             "sepeda": "sepeda",
@@ -162,45 +164,29 @@ class DataProcessor:
             "hp": "smartphone",
             "televisi": "televisi",
             "tv": "televisi",
-            # Additional assets from legacy
+            "tvflat": "televisi",
+            "televisilayardatar": "televisi",
+            "televisilayardatarmin30inci": "televisi",
+            # NEW: Missing assets
             "kapal": "kapal_perahu_motor",
-            "perahu": "perahu",
             "perahumotor": "kapal_perahu_motor",
+            "kapalperahumotor": "kapal_perahu_motor",
             "pemanasair": "pemanas_air",
             "waterheater": "pemanas_air",
+            "pemanasairwaterheater": "pemanas_air",
+            "perahu": "perahu",
             "tabunggas": "tabung_gas",
+            "tabunggas55kg": "tabung_gas",
+            "tabunggas55kgataulebih": "tabung_gas",
             "telepon": "telepon_rumah",
             "teleponrumah": "telepon_rumah",
+            "teleponrumahpstn": "telepon_rumah",
             "pstn": "telepon_rumah",
         }
 
-        # Normalize keys in map
         def normalize_label(value: Any) -> str:
             text = str(value or "").lower()
             return "".join(ch for ch in text if ch.isalnum())
-
-        alias_map = {normalize_label(k): v for k, v in base_alias_map.items()}
-
-        # Add fallback mappings for existing constant-style names if they differ
-        # e.g. jml_sapi -> jumlah_sapi, tvflat -> televisi
-        common_vars = {
-            "jmlsapi": "jumlah_sapi", "jumlahsapi": "jumlah_sapi",
-            "jmlkerbau": "jumlah_kerbau", "jumlahkerbau": "jumlah_kerbau",
-            "jmlkambing": "jumlah_kambing", "jumlahkambing": "jumlah_kambing",
-            "jmlkambingdomba": "jumlah_kambing", "jumlahkambingdomba": "jumlah_kambing",
-            "jmlbabi": "jumlah_babi", "jumlahbabi": "jumlah_babi",
-            "jmlkuda": "jumlah_kuda", "jumlahkuda": "jumlah_kuda",
-            "airconditioner": "ac", "airconditionerac": "ac",
-            "emasperhiasan": "emas", "emasperhiasanmin10gram": "emas",
-            "komputerlaptoptablet": "komputer",
-            "lemarieskulkas": "lemari_es",
-            "tvflat": "televisi", "televisilayardatar": "televisi", "televisilayardatarmin30inci": "televisi",
-            "kapalperahumotor": "kapal_perahu_motor",
-            "pemanasairwaterheater": "pemanas_air",
-            "tabunggas55kg": "tabung_gas", "tabunggas55kgataulebih": "tabung_gas",
-            "teleponrumahpstn": "telepon_rumah"
-        }
-        alias_map.update(common_vars)
 
         totals: Dict[str, Dict[str, int]] = {}
 
@@ -221,7 +207,7 @@ class DataProcessor:
             per_family = totals.setdefault(fam_id, {})
             per_family[canonical] = per_family.get(canonical, 0) + jumlah
 
-        for rec in raw:
+        for rec in asetb_rows:
             if not isinstance(rec, dict):
                 continue
             family_id = rec.get("id_keluarga") or rec.get("id_keluarga_parent")
