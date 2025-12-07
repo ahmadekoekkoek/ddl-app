@@ -4,7 +4,7 @@ Custom widgets: CircularProgress, StepIndicator, ModernButton, PackageCard
 """
 
 from PySide6.QtWidgets import QWidget, QPushButton, QFrame, QLabel, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QPainter, QColor, QFont
 
 from .constants import COLORS, FONTS
@@ -273,3 +273,66 @@ class ModernButton(QPushButton):
             }}
         """)
         self.setAccessibleName(self.text())
+
+
+class CollapsibleFrame(QFrame):
+    """A frame that can be collapsed and expanded with a smooth animation."""
+    def __init__(self, title: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.is_expanded = True
+        self.setup_ui(title)
+
+    def setup_ui(self, title: str):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        self.toggle_button = QPushButton(f"▼ {title}")
+        self.toggle_button.setStyleSheet("""
+            QPushButton {
+                background-color: #34495e; color: white; border: none;
+                padding: 10px; text-align: left; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #4a6fa5; }
+        """)
+        self.toggle_button.clicked.connect(self.toggle)
+
+        self.content_frame = QFrame()
+        self.content_frame.setStyleSheet("background-color: #2c3e50; border-top: 1px solid #34495e;")
+        self.content_layout = QVBoxLayout(self.content_frame)
+        self.content_layout.setContentsMargins(10, 10, 10, 10)
+
+        main_layout.addWidget(self.toggle_button)
+        main_layout.addWidget(self.content_frame)
+
+        # Animation setup
+        self.animation = QPropertyAnimation(self.content_frame, b"maximumHeight")
+        self.animation.setDuration(300)
+        self.animation.setEasingCurve(QEasingCurve.InOutQuad)
+
+    def setContentLayout(self, layout):
+        # Clear existing layout and repopulate
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.content_layout.addLayout(layout)
+
+        # Ensure the frame starts with the correct size
+        self.content_frame.adjustSize()
+        self.toggle(instant=True)
+
+    def toggle(self, instant=False):
+        self.is_expanded = not self.is_expanded
+        arrow = "▼" if self.is_expanded else "►"
+        self.toggle_button.setText(f"{arrow} {self.toggle_button.text().split(' ', 1)[1]}")
+
+        start_height = self.content_frame.height()
+        end_height = self.content_frame.sizeHint().height() if self.is_expanded else 0
+
+        if instant:
+            self.content_frame.setMaximumHeight(end_height)
+        else:
+            self.animation.setStartValue(start_height)
+            self.animation.setEndValue(end_height)
+            self.animation.start()

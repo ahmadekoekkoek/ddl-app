@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
-from .widgets import ModernButton
+from .widgets import ModernButton, CollapsibleFrame
 
 
 # =============================================================================
@@ -213,176 +213,43 @@ class WhatsAppPaymentStage(QWidget):
         layout.setSpacing(15)
         layout.setContentsMargins(20, 10, 20, 20)
 
-        # Main container
+        # --- Header ---
+        header_frame = QFrame()
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(0, 0, 0, 0)
 
-        # === ORDER INFO SECTION ===
-        order_frame = QFrame()
-        order_frame.setStyleSheet("""
-            QFrame {
-                background: rgba(41, 128, 185, 0.2);
-                border: 2px solid #3498db;
-                border-radius: 10px;
-                padding: 15px;
-            }
-        """)
-        order_layout = QVBoxLayout(order_frame)
-
-        # TX-ID (large, prominent)
         self.tx_id_label = QLabel()
-        self.tx_id_label.setStyleSheet("""
-            font-size: 28px;
-            font-weight: bold;
-            color: #f39c12;
-            padding: 10px;
-        """)
-        self.tx_id_label.setAlignment(Qt.AlignCenter)
-        order_layout.addWidget(self.tx_id_label)
+        self.tx_id_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #f39c12;")
+        self.amount_label = QLabel()
+        self.amount_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2ecc71;")
 
-        # Copy TX-ID button
         copy_tx_btn = QPushButton("📋 Salin TX-ID")
         copy_tx_btn.setStyleSheet("""
-            QPushButton {
-                background: #f39c12;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-                border-radius: 5px;
-                font-size: 12px;
-                font-weight: bold;
-            }
+            QPushButton { background: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 5px; }
             QPushButton:hover { background: #e67e22; }
         """)
         copy_tx_btn.clicked.connect(self._copy_tx_id)
-        order_layout.addWidget(copy_tx_btn, alignment=Qt.AlignCenter)
 
-        # Order details
-        self.details_label = QLabel()
-        self.details_label.setStyleSheet("""
-            font-size: 14px;
-            color: #ecf0f1;
-            padding: 10px;
-        """)
-        self.details_label.setAlignment(Qt.AlignCenter)
-        order_layout.addWidget(self.details_label)
+        header_layout.addWidget(self.tx_id_label)
+        header_layout.addWidget(self.amount_label)
+        header_layout.addStretch()
+        header_layout.addWidget(copy_tx_btn)
+        layout.addWidget(header_frame)
 
-        # Amount (large)
-        self.amount_label = QLabel()
-        self.amount_label.setStyleSheet("""
-            font-size: 32px;
-            font-weight: bold;
-            color: #2ecc71;
-            padding: 15px;
-        """)
-        self.amount_label.setAlignment(Qt.AlignCenter)
-        order_layout.addWidget(self.amount_label)
+        # --- Collapsible Order Info ---
+        order_collapsible = CollapsibleFrame("Lihat Detail Pesanan")
+        order_details_layout = self._create_order_details_layout()
+        order_collapsible.setContentLayout(order_details_layout)
+        layout.addWidget(order_collapsible)
 
-        layout.addWidget(order_frame)
+        # --- Collapsible Payment Instructions ---
+        payment_collapsible = CollapsibleFrame("Lihat Cara Pembayaran")
+        payment_instructions_layout = self._create_payment_instructions_layout()
+        payment_collapsible.setContentLayout(payment_instructions_layout)
+        layout.addWidget(payment_collapsible)
 
-        # === PAYMENT INSTRUCTIONS SECTION ===
-        instructions_frame = QFrame()
-        instructions_frame.setStyleSheet("""
-            QFrame {
-                background: rgba(39, 174, 96, 0.15);
-                border: 2px solid #27ae60;
-                border-radius: 10px;
-                padding: 15px;
-            }
-        """)
-        instructions_layout = QVBoxLayout(instructions_frame)
-
-        # Title
-        inst_title = QLabel("📱 Cara Pembayaran:")
-        inst_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #2ecc71;")
-        instructions_layout.addWidget(inst_title)
-
-        # Steps
-        steps_text = """
-        <ol style="color: #ecf0f1; font-size: 13px; line-height: 1.8;">
-            <li>Foto halaman ini yang menampilkan TX-ID beserta jumlah total</li>
-            <li>Kirim ke nomor WhatsApp di bawah ini</li>
-            <li>Tunggu kode unlock dikirim lewat WA</li>
-            <li>Masukkan kode unlock di bawah</li>
-        </ol>
-        """
-        steps_label = QLabel(steps_text)
-        steps_label.setWordWrap(True)
-        instructions_layout.addWidget(steps_label)
-
-        # WhatsApp number (large, prominent)
-        wa_title = QLabel("📲 Kirim ke WhatsApp:")
-        wa_title.setStyleSheet("font-size: 14px; color: #bdc3c7; margin-top: 10px;")
-        instructions_layout.addWidget(wa_title)
-
-        wa_number = QLabel(SELLER_WHATSAPP_DISPLAY)
-        wa_number.setStyleSheet("""
-            font-size: 36px;
-            font-weight: bold;
-            color: #25D366;
-            padding: 15px;
-            background: rgba(37, 211, 102, 0.1);
-            border-radius: 8px;
-        """)
-        wa_number.setAlignment(Qt.AlignCenter)
-        wa_number.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        instructions_layout.addWidget(wa_number)
-
-        # Note
-        note_label = QLabel("⚠️ Sertakan TX-ID dalam pesan WhatsApp Anda!")
-        note_label.setStyleSheet("""
-            font-size: 12px;
-            color: #e74c3c;
-            font-weight: bold;
-            padding: 8px;
-        """)
-        note_label.setAlignment(Qt.AlignCenter)
-        instructions_layout.addWidget(note_label)
-
-        layout.addWidget(instructions_frame)
-
-        # === UNLOCK CODE SECTION ===
-        unlock_frame = QFrame()
-        unlock_frame.setStyleSheet("""
-            QFrame {
-                background: rgba(155, 89, 182, 0.15);
-                border: 2px solid #9b59b6;
-                border-radius: 10px;
-                padding: 15px;
-            }
-        """)
-        unlock_layout = QVBoxLayout(unlock_frame)
-
-        unlock_title = QLabel("🔓 Masukkan Kode Unlock:")
-        unlock_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #9b59b6;")
-        unlock_layout.addWidget(unlock_title)
-
-        unlock_help = QLabel("Kode unlock akan dikirim via SMS setelah pembayaran terverifikasi")
-        unlock_help.setStyleSheet("font-size: 12px; color: #bdc3c7;")
-        unlock_layout.addWidget(unlock_help)
-
-        # Code input
-        self.code_input = QLineEdit()
-        self.code_input.setPlaceholderText("Masukkan kode unlock...")
-        self.code_input.setMaxLength(20)
-        self.code_input.setStyleSheet("""
-            QLineEdit {
-                background: #34495e;
-                color: white;
-                border: 2px solid #9b59b6;
-                border-radius: 8px;
-                padding: 15px;
-                font-size: 24px;
-                font-weight: bold;
-                letter-spacing: 4px;
-            }
-            QLineEdit:focus {
-                border-color: #2ecc71;
-            }
-        """)
-        self.code_input.setAlignment(Qt.AlignCenter)
-        self.code_input.returnPressed.connect(self._on_verify)
-        unlock_layout.addWidget(self.code_input)
-
-        layout.addWidget(unlock_frame)
+        # --- Unlock Code Section ---
+        self._create_unlock_section(layout)
 
         # === BUTTONS ===
         btn_layout = QHBoxLayout()
@@ -417,6 +284,54 @@ class WhatsAppPaymentStage(QWidget):
         scroll.setWidget(content)
         main_layout.addWidget(scroll)
 
+    def _create_order_details_layout(self):
+        layout = QVBoxLayout()
+        self.details_label = QLabel()
+        self.details_label.setStyleSheet("font-size: 14px; color: #ecf0f1;")
+        layout.addWidget(self.details_label)
+        return layout
+
+    def _create_payment_instructions_layout(self):
+        layout = QVBoxLayout()
+        steps_text = """
+        <ol style="color: #ecf0f1; font-size: 13px; line-height: 1.8;">
+            <li>Foto halaman ini yang menampilkan TX-ID beserta jumlah total</li>
+            <li>Kirim ke nomor WhatsApp di bawah ini</li>
+            <li>Tunggu kode unlock dikirim lewat WA</li>
+            <li>Masukkan kode unlock di bawah</li>
+        </ol>
+        """
+        steps_label = QLabel(steps_text)
+        steps_label.setWordWrap(True)
+
+        wa_number = QLabel(SELLER_WHATSAPP_DISPLAY)
+        wa_number.setStyleSheet("font-size: 20px; font-weight: bold; color: #25D366;")
+        wa_number.setTextInteractionFlags(Qt.TextSelectableByMouse)
+
+        layout.addWidget(steps_label)
+        layout.addWidget(wa_number)
+        return layout
+
+    def _create_unlock_section(self, main_layout):
+        unlock_frame = QFrame()
+        unlock_layout = QVBoxLayout(unlock_frame)
+        unlock_title = QLabel("🔓 Masukkan Kode Unlock:")
+        unlock_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #9b59b6;")
+        self.code_input = QLineEdit()
+        self.code_input.setPlaceholderText("Masukkan kode unlock...")
+        self.code_input.setStyleSheet("""
+            QLineEdit {
+                background: #34495e; color: white; border: 2px solid #9b59b6;
+                border-radius: 8px; padding: 15px; font-size: 24px; font-weight: bold;
+            }
+            QLineEdit:focus { border-color: #2ecc71; }
+        """)
+        self.code_input.setAlignment(Qt.AlignCenter)
+        self.code_input.returnPressed.connect(self._on_verify)
+        unlock_layout.addWidget(unlock_title)
+        unlock_layout.addWidget(self.code_input)
+        main_layout.addWidget(unlock_frame)
+
     def set_order(self, tx_id: str, package_name: str, amount: int,
                   families_count: int = 0, members_count: int = 0,
                   files_path: str = ""):
@@ -434,24 +349,23 @@ class WhatsAppPaymentStage(QWidget):
             print(f"✅ Loaded existing order {tx_id} with unlock code")
 
         # Update UI
-        self.tx_id_label.setText(f"📋 {tx_id}")
-        self.details_label.setText(
-            f"📦 Paket: <b>{package_name}</b> | "
-            f"👥 {families_count} Keluarga"
-        )
-        self.amount_label.setText(f"Rp {amount:,}".replace(",", "."))
-        self.code_input.clear()
+        self._update_ui_with_order()
 
     def set_existing_order(self, order: WhatsAppOrder):
         """Set an existing order (for unlock mode)."""
         self.order = order
+        self._update_ui_with_order()
 
-        self.tx_id_label.setText(f"📋 {order.tx_id}")
+    def _update_ui_with_order(self):
+        if not self.order:
+            return
+
+        self.tx_id_label.setText(f"TX-ID: {self.order.tx_id}")
+        self.amount_label.setText(f"Rp {self.order.amount:,}".replace(",", "."))
         self.details_label.setText(
-            f"📦 Paket: <b>{order.package_name}</b> | "
-            f"👥 {order.families_count} Keluarga"
+            f"📦 Paket: <b>{self.order.package_name}</b><br>"
+            f"👥 {self.order.families_count} Keluarga"
         )
-        self.amount_label.setText(f"Rp {order.amount:,}".replace(",", "."))
         self.code_input.clear()
 
     def _copy_tx_id(self):
